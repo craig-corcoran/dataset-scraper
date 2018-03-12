@@ -15,6 +15,8 @@ import time
 
 load_dotenv(dotenv_path='ddw.env')
 TOKEN = os.getenv("TOKEN")
+SECRET_KEY = os.getenv("SECRET_KEY")
+ACCESS_KEY = os.getenv("ACCESS_KEY")
 
 
 def scrape_ddw(user='craig-corcoran', project='dataset-labeling'):
@@ -77,7 +79,7 @@ def metadata_present(metadata_fname):
     return os.path.isfile(metadata_fname) and (os.path.getsize(metadata_fname) > 0)
 
 
-def process_bucket_object(obj_key, base_dir, base_url, req_params, bucket_name, formats, verbose=True):
+def process_bucket_object(obj_key, base_dir, base_url, req_params, bucket_name, formats):
 
     # print('processing object: ', obj)
     s3 = boto3.resource('s3')
@@ -138,7 +140,11 @@ def read_s3_parallel(base_dir='data/ddw-s3', bucket_name='dataworld-newknowledge
     req_params = {'headers': {'Authorization': 'Bearer {0}'.format(TOKEN)}}
     base_url = 'https://api.data.world/v0'
 
-    s3 = boto3.resource('s3')
+    s3 = boto3.resource('s3',
+                        aws_access_key_id=ACCESS_KEY,
+                        aws_secret_access_key=SECRET_KEY,
+                        )
+
     bucket = s3.Bucket(bucket_name)
     obj_gen = bucket.objects.filter(Prefix='derived')
 
