@@ -1,16 +1,16 @@
-[
-  "https://open.alberta.ca", 
-  "http://bermuda.io", 
-  "http://data.ottawa.ca", 
-  "http://data.surrey.ca", 
-  "http://www.civicdata.io", 
-  "https://datahub.cmap.illinois.gov", 
-  "http://130.179.67.140", 
-  "https://data.noaa.gov/dataset", 
-  "http://data.openva.com", 
-  "http://opendatareno.org", 
-  "http://data.gov.uk", 
-  "https://data.barrowbc.gov.uk", 
-  "http://www.europeandataportal.eu/data", 
-  "https://africaopendata.org"
-]
+{
+  "alberta": "https://open.alberta.ca",
+  "bermuda": "http://bermuda.io",
+  "ottowa": "http://data.ottawa.ca",
+  "surrey": "http://data.surrey.ca",
+  "civicdata": "http://www.civicdata.io",
+  "illinois": "https://datahub.cmap.illinois.gov",
+  "130.179.67.140": "http://130.179.67.140",
+  "noaa": "https://data.noaa.gov/dataset",
+  "openva": "http://data.openva.com",
+  "opendatareno": "http://opendatareno.org",
+  "uk": "http://data.gov.uk",
+  "barrowbc": "https://data.barrowbc.gov.uk",
+  "europeandataportal": "http://www.europeandataportal.eu/data",
+  "africaopendata": "https://africaopendata.org"
+}
