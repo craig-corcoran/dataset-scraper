@@ -51,6 +51,7 @@ def scrape_ckan_instance(ckan_url="https://open.alberta.ca", formats=['xls', 'xl
                     break
 
                 except requests.exceptions.ConnectionError as err:
+                    # TODO more careful check for rate limiting
                     print('connection error requesting from url:', resource['url'])
                     print('error:', err)
                     print('waiting', wait_time, 'seconds ( max is', MAX_WAIT, ')')

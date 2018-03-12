@@ -5,6 +5,10 @@ import xlrd
 from ckanapi import RemoteCKAN
 
 
+def get_timestamp():
+    return datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d_%H-%M-%S')
+
+
 def test_ckan_instances(instances_file='data/ckan/ckan-instances.json'):
     with open(instances_file) as json_file:
         instances = json.load(json_file)
