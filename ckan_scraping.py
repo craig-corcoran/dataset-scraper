@@ -17,7 +17,7 @@ MAX_WAIT = 60
 # TODO separate into local and adl scrapers
 
 
-def scrape_ckan_instance(ckan_url='https://open.alberta.ca', formats=['xls', 'xlsx', 'csv'], data_dir='data/ckan'):
+def scrape_ckan_instance(ckan_url="https://open.alberta.ca", formats=['xls', 'xlsx', 'csv'], data_dir='data/ckan'):
     # def scrape_ckan_instance(**kwargs):
     # ckan_url = kwargs['ckan_url'] if kwargs['ckan_url'] else 'https://open.alberta.ca'
     # formats = kwargs['formats'] if kwargs['formats'] else ['xls', 'xlsx', 'csv']
@@ -47,6 +47,7 @@ def scrape_ckan_instance(ckan_url='https://open.alberta.ca', formats=['xls', 'xl
 
             wait_time = MIN_WAIT
             while True:
+                # TODO add timeout to skip large files
                 try:
                     # o.w. request resource from url
                     print('requesting', resource['url'])
@@ -85,7 +86,7 @@ def scrape_ckan_instance(ckan_url='https://open.alberta.ca', formats=['xls', 'xl
 
     print('scraping ckan instance', ckan_url)
     if not os.path.isdir(data_dir):
-        os.mkdir(data_dir)
+        os.makedirs(data_dir)
 
     instance = RemoteCKAN(ckan_url)
     print('retrieving list of instance datasets for', ckan_url)
@@ -120,8 +121,8 @@ def parallel_ckan_scrape(formats=['xls', 'xlsx', 'csv', 'json', 'txt'], data_dir
     with open('ckan-instances.json') as json_file:
         instance_urls = json.load(json_file)
 
-    # scrape_args = [dict(ckan_url=ckan_url, formats=formats, data_dir=data_dir) for ckan_url in instance_urls]
-    scrape_args = [(ckan_url, formats, data_dir) for ckan_url in instance_urls]
+    scrape_args = [(ckan_url, formats, os.path.join(data_dir, ckan_name))
+                   for ckan_name, ckan_url in instance_urls.items()]
 
     pool = multiprocessing.Pool()
     print('multiprocess mapping scrape func over instance list')
