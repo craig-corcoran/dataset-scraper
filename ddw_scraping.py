@@ -7,10 +7,14 @@ import boto3
 import os
 import glob
 import scipy.sparse as sp
-from embedding import Embedding
-from utils import get_timestamp
+# from embedding import Embedding
+from utils import get_timestamp, write_json, read_json
+from dotenv import load_dotenv
+import multiprocessing
+import time
 
-# TODO read token from env var
+load_dotenv(dotenv_path='ddw.env')
+TOKEN = os.getenv("TOKEN")
 
 
 def scrape_ddw(user='craig-corcoran', project='dataset-labeling'):
@@ -69,63 +73,141 @@ def scrape_ddw(user='craig-corcoran', project='dataset-labeling'):
                 print('missing table in:', tables)
 
 
-def tags_present(tags_fname):
-    return os.path.isfile(tags_fname) and (os.path.getsize(tags_fname) > 0)
+def metadata_present(metadata_fname):
+    return os.path.isfile(metadata_fname) and (os.path.getsize(metadata_fname) > 0)
 
 
-def read_s3(base_dir='data/ddw-s3', bucket_name='dataworld-newknowledge-us-east-1'):
+def process_bucket_object(obj_key, base_dir, base_url, req_params, bucket_name, formats, verbose=True):
+
+    # print('processing object: ', obj)
+    s3 = boto3.resource('s3')
+    bucket = s3.Bucket(bucket_name)
+
+    # object keys are of the form: derived/<owner>/<dataset-name>/<file-name>
+    # remove "derived" prefix, replace "/" in path with "." for filename
+    key_list = obj_key.split('/')
+    owner = key_list[1]
+    data_key = key_list[2]
+    fname = '.'.join(key_list[3:])
+    data_id = '{0}.{1}'.format(owner, data_key)
+
+    # print('processing object: ', data_id)
+
+    dir_path = '{0}/{1}'.format(base_dir, data_id)
+    if not os.path.isdir(dir_path):
+        os.makedirs(dir_path)
+
+    # TODO handle deeper nested directories (getting "does not exist" from ddw api)
+    metadata_fname = '{0}/{1}_metadata.json'.format(dir_path, data_id)
+    if not metadata_present(metadata_fname):
+        try:
+            # print('getting metadata for dataset: {0}'.format(data_id))
+            response = requests.get('{0}/datasets/{1}/{2}'.format(base_url, owner, data_key), **req_params)
+            content = json.loads(response.content)
+            write_json(content, metadata_fname)
+            if content.get('tags'):
+                # print('found tags from', metadata_fname, content['tags'])
+                tags_fname = '{0}/{1}_tags.json'.format(dir_path, data_id)
+                write_json(content['tags'], tags_fname)
+
+        except Exception as e:
+            print('error with metadata in:', metadata_fname)
+            print('response:', content)
+            print('error:', e)
+            raise e
+
+    # if file not already present,
+    data_fname = '{0}/{1}'.format(dir_path, fname)
+    file_format = os.path.splitext(fname)[1].replace('.', '')
+    if os.path.isfile(data_fname) and os.path.getsize(data_fname) > 0:
+        print('file already present:', data_fname)
+
+    elif file_format in formats:
+        try:
+            # print('saving file:', data_fname)
+            bucket.download_file(obj_key, data_fname)
+        except Exception as e:
+            print('error with file', obj_key)
+            print('error:', e)
+    # else:
+    #     print('invalid format:', data_fname)
+
+
+def read_s3_parallel(base_dir='data/ddw-s3', bucket_name='dataworld-newknowledge-us-east-1', formats=['xls', 'xlsx', 'csv', 'json', 'txt'], batch_size=64):
 
     req_params = {'headers': {'Authorization': 'Bearer {0}'.format(TOKEN)}}
     base_url = 'https://api.data.world/v0'
 
     s3 = boto3.resource('s3')
     bucket = s3.Bucket(bucket_name)
+    obj_gen = bucket.objects.filter(Prefix='derived')
 
     if not os.path.isdir(base_dir):
-        os.mkdir(base_dir)
+        os.makedirs(base_dir)
 
-    for obj in bucket.objects.filter(Prefix='derived'):
+    for i, page in enumerate(obj_gen.pages()):
+        print('page', i)
+        with multiprocessing.Pool() as pool:
+            scrape_args = [(obj.key, base_dir, base_url, req_params, bucket_name, formats) for obj in page]
+            print('multiprocess mapping scrape func over batch of', len(scrape_args), 'objects from bucket')
+            # pool.starmap_async(process_bucket_object, scrape_args)
+            pool.starmap(process_bucket_object, scrape_args)
+            time.sleep(2)
 
-        # object keys are of the form: derived/<owner>/<dataset-name>/<file-name>
-        # remove "derived" prefix, replace "/" in path with "." for filename
-        key_list = obj.key.split('/')
-        owner = key_list[1]
-        data_key = key_list[2]
-        fname = '.'.join(key_list[3:])
-        data_id = '{0}.{1}'.format(owner, data_key)
+        pool.join()
 
-        dir_path = '{0}/{1}'.format(base_dir, data_id)
-        if not os.path.isdir(dir_path):
-            os.mkdir(dir_path)
+    # pool.close()
 
-        # TODO handle deeper nested directories (getting "does not exist" from ddw api)
-        tags_fname = '{0}/{1}_tags.json'.format(dir_path, data_id)
-        if not tags_present(tags_fname):
-            try:
-                print('getting tags for dataset: {0}'.format(data_id))
-                response = requests.get('{0}/datasets/{1}/{2}'.format(base_url, owner, data_key), **req_params)
-                content = json.loads(response.content)
-                if not content.get('tags'):
-                    print('empty tags list:', tags_fname)
-                    # print('content tags:', content.get('tags'))
-                    print('content:', content)
-                else:
-                    with open(tags_fname, 'w') as json_file:
-                        json.dump(content['tags'], json_file, indent=2)
+    # pool.starmap(process_bucket_object, scrape_args)
 
-            except Exception as e:
-                print('error with tags in:', tags_fname)
-                print('response:', content)
-                print('error:', e)
+    # scrape_args = ((obj, base_dir, base_url, req_params, bucket, formats)
+    #                for obj in bucket.objects.filter(Prefix='derived'))
 
-        save_fname = '{0}/{1}'.format(dir_path, fname)
-        if not os.path.isfile(save_fname):
-            try:
-                print('saving file:', save_fname)
-                bucket.download_file(obj.key, save_fname)
-            except Exception as e:
-                print('error with file', obj.key)
-                print('error:', e)
+    # for obj in bucket.objects.filter(Prefix='derived'):
+    #     process_bucket_object(obj, base_dir, base_url, req_params, bucket, formats)
+
+    # # object keys are of the form: derived/<owner>/<dataset-name>/<file-name>
+    # # remove "derived" prefix, replace "/" in path with "." for filename
+    # key_list = obj.key.split('/')
+    # owner = key_list[1]
+    # data_key = key_list[2]
+    # fname = '.'.join(key_list[3:])
+    # data_id = '{0}.{1}'.format(owner, data_key)
+
+    # dir_path = '{0}/{1}'.format(base_dir, data_id)
+    # if not os.path.isdir(dir_path):
+    #     os.makedirs(dir_path)
+
+    # # TODO handle deeper nested directories (getting "does not exist" from ddw api)
+    # metadata_fname = '{0}/{1}_metadata.json'.format(dir_path, data_id)
+    # if not metadata_present(metadata_fname):
+    #     try:
+    #         print('getting metadata for dataset: {0}'.format(data_id))
+    #         response = requests.get('{0}/datasets/{1}/{2}'.format(base_url, owner, data_key), **req_params)
+    #         content = json.loads(response.content)
+    #         write_json(content, metadata_fname)
+    #         if not content.get('tags'):
+    #             print('missing or empty tags list:', metadata_fname)
+    #             # print('content:', content)
+    #         else:
+    #             print('found tags from', metadata_fname, content['tags'])
+    #             tags_fname = '{0}/{1}_tags.json'.format(dir_path, data_id)
+    #             write_json(content['tags'], tags_fname)
+
+    #     except Exception as e:
+    #         print('error with metadata in:', metadata_fname)
+    #         print('response:', content)
+    #         print('error:', e)
+    #         raise e
+
+    # save_fname = '{0}/{1}'.format(dir_path, fname)
+    # if not os.path.isfile(save_fname):
+    #     try:
+    #         print('saving file:', save_fname)
+    #         bucket.download_file(obj.key, save_fname)
+    #     except Exception as e:
+    #         print('error with file', obj.key)
+    #         print('error:', e)
 
 
 def get_data_id(base_dir, folder):
@@ -143,7 +225,7 @@ def move_labeled(base_dir='data/ddw-s3'):
         data_id = get_data_id(base_dir, folder)
         tags_fname = get_tags_filename(folder, data_id)
 
-        if tags_present(tags_fname):
+        if metadata_present(tags_fname):
             with open(tags_fname) as json_file:
                 tags = json.load(json_file)
                 if tags:
@@ -172,7 +254,7 @@ def get_all_tags(base_dir='data/ddw-s3/labeled', n_tags=1000):
         data_id = get_data_id(base_dir, folder)
         # tags_fname = '{0}/{1}_tags.json'.format(folder, data_id)
         tags_fname = get_tags_filename(folder, data_id)
-        if tags_present(tags_fname):
+        if metadata_present(tags_fname):
             with open(tags_fname) as json_file:
                 tags = json.load(json_file)
                 if tags:
@@ -252,12 +334,7 @@ def build_target_matrix(base_dir='data/ddw-s3'):
 
 if __name__ == '__main__':
     # main()
-    # read_s3()
-    get_all_tags()
+    read_s3_parallel()
+    # get_all_tags()
     # build_target_matrix()
     # move_labeled()
-
-    # Access key ID,
-    # Secret access key
-    # AKIAJTYUCDCIGSYEV7HQ
-    # m2FVwRYVe86vZLYe+mNSqX4Z8MySkkni7xPR/FHI
