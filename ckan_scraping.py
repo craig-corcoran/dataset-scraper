@@ -60,7 +60,7 @@ def scrape_ckan_instance(ckan_url="https://open.alberta.ca", formats=['xls', 'xl
                     else:
                         break
 
-            if response.status_code == 200:
+            if response and response.status_code == 200:
                 # if successful, stream data to file
                 print('saving file:', data_filename)
                 with open(data_filename, 'wb') as data_file:
