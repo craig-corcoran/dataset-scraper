@@ -114,7 +114,8 @@ def process_bucket_object(obj_key, base_dir, base_url, req_params, bucket_name, 
 
         except Exception as e:
             print('error with metadata in:', metadata_fname)
-            print('response:', content)
+            if content:
+                print('response:', content)
             print('error:', e)
             raise e
 
