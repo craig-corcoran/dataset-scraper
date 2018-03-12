@@ -97,7 +97,8 @@ def process_bucket_object(obj_key, base_dir, base_url, req_params, bucket_name, 
 
     dir_path = '{0}/{1}'.format(base_dir, data_id)
     if not os.path.isdir(dir_path):
-        os.makedirs(dir_path)
+        # os.makedirs(dir_path)
+        os.mkdir(dir_path)
 
     # TODO handle deeper nested directories (getting "does not exist" from ddw api)
     metadata_fname = '{0}/{1}_metadata.json'.format(dir_path, data_id)
@@ -141,7 +142,7 @@ def read_s3_parallel(base_dir='data/ddw-s3', bucket_name='dataworld-newknowledge
     base_url = 'https://api.data.world/v0'
 
     s3 = boto3.resource('s3',
-                        aws_access_key_id=ACCESS_KEY,
+                        aws_access_key_id=ACCESS_KEY,  # TODO Needed or even working? seems to load from ~/.aws/credentials instead
                         aws_secret_access_key=SECRET_KEY,
                         )
 
