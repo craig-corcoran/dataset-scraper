@@ -70,7 +70,8 @@ def scrape_ckan_instance(ckan_url="https://open.alberta.ca", formats=['xls', 'xl
                         data_file.write(chunk)
 
             else:
-                print('request failed:', response.status_code)
+                if response:
+                    print('request failed:', response.status_code)
                 print('failed resource:', strip_empty(resource))
 
         except requests.exceptions.InvalidSchema as err:
