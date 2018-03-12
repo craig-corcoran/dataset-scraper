@@ -1,20 +1,16 @@
 import json
+import multiprocessing
 import os
+import time
 
 import requests
 from ckanapi import RemoteCKAN
 
-import multiprocessing
-from joblib import Parallel, delayed
-
-from utilities import strip_empty, is_valid_resource, get_dataset_name
-import time
+from utilities import get_dataset_name, is_valid_resource, strip_empty
 
 
 MIN_WAIT = 2
 MAX_WAIT = 60
-
-# TODO separate into local and adl scrapers
 
 
 def scrape_ckan_instance(ckan_url="https://open.alberta.ca", formats=['xls', 'xlsx', 'csv'], data_dir='data/ckan'):
