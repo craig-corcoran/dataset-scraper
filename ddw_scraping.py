@@ -97,8 +97,10 @@ def process_bucket_object(obj_key, base_dir, base_url, req_params, bucket_name, 
 
     dir_path = '{0}/{1}'.format(base_dir, data_id)
     if not os.path.isdir(dir_path):
-        # os.makedirs(dir_path)
-        os.mkdir(dir_path)
+        try:
+            os.makedirs(dir_path)
+        except FileExistsError as err:
+            print('async directory creation error:', err)
 
     # TODO handle deeper nested directories (getting "does not exist" from ddw api)
     metadata_fname = '{0}/{1}_metadata.json'.format(dir_path, data_id)
@@ -117,7 +119,7 @@ def process_bucket_object(obj_key, base_dir, base_url, req_params, bucket_name, 
         except Exception as e:
             print('error with metadata in:', metadata_fname)
             print('error:', e)
-            raise e
+            # raise e
 
     # if file not already present,
     data_fname = '{0}/{1}'.format(dir_path, fname)
