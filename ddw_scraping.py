@@ -105,7 +105,11 @@ def process_bucket_object(obj_key, base_dir, base_url, req_params, bucket_name, 
         try:
             # print('getting metadata for dataset: {0}'.format(data_id))
             response = requests.get('{0}/datasets/{1}/{2}'.format(base_url, owner, data_key), **req_params)
-            content = json.loads(response.content)
+            if isinstance(response.content, str):
+                content = json.loads(response.content)
+            else:
+                content = json.load(response)
+
             write_json(content, metadata_fname)
             if content.get('tags'):
                 # print('found tags from', metadata_fname, content['tags'])
