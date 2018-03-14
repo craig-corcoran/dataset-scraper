@@ -121,21 +121,46 @@ def process_bucket_object(obj_key, base_dir, base_url, req_params, bucket_name, 
             print('error:', e)
             # raise e
 
-    # if file not already present,
+    # skip if file is already present,
     data_fname = '{0}/{1}'.format(dir_path, fname)
     file_format = os.path.splitext(fname)[1].replace('.', '')
     if os.path.isfile(data_fname) and os.path.getsize(data_fname) > 0:
         print('file already present:', data_fname)
 
-    elif file_format in formats:
+    # if formats are given, make sure file format is in desired formats
+    elif (formats and file_format in formats) or not formats:
         try:
-            # print('saving file:', data_fname)
+            print('saving file:', data_fname)
             bucket.download_file(obj_key, data_fname)
         except Exception as e:
             print('error with file', obj_key)
             print('error:', e)
     # else:
     #     print('invalid format:', data_fname)
+
+
+def read_s3_serial(base_dir='data/ddw-s3', bucket_name='dataworld-newknowledge-us-east-1', formats=['xls', 'xlsx', 'csv', 'json', 'txt'], batch_size=64):
+
+    req_params = {'headers': {'Authorization': 'Bearer {0}'.format(TOKEN)}}
+    base_url = 'https://api.data.world/v0'
+
+    s3 = boto3.resource('s3',
+                        aws_access_key_id=ACCESS_KEY,  # TODO Needed or even working? seems to load from ~/.aws/credentials instead
+                        aws_secret_access_key=SECRET_KEY,
+                        )
+
+    bucket = s3.Bucket(bucket_name)
+    obj_gen = bucket.objects.filter(Prefix='derived')
+
+    if not os.path.isdir(base_dir):
+        os.makedirs(base_dir)
+
+    for i, page in enumerate(obj_gen.pages()):
+        # process_bucket_object(obj, base_dir, base_url, req_params, bucket, formats)
+        print('page', i)
+        scrape_args = [(obj.key, base_dir, base_url, req_params, bucket_name, formats) for obj in page]
+        for args in scrape_args:
+            process_bucket_object(*args)
 
 
 def read_s3_parallel(base_dir='data/ddw-s3', bucket_name='dataworld-newknowledge-us-east-1', formats=['xls', 'xlsx', 'csv', 'json', 'txt'], batch_size=64):
@@ -343,7 +368,8 @@ def build_target_matrix(base_dir='data/ddw-s3'):
 
 if __name__ == '__main__':
     # main()
-    read_s3_parallel()
+    # read_s3_serial(formats=None)
+    read_s3_parallel(formats=None)
     # get_all_tags()
     # build_target_matrix()
     # move_labeled()
