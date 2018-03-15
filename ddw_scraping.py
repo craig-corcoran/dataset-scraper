@@ -12,6 +12,8 @@ from utils import get_timestamp, write_json, read_json
 from dotenv import load_dotenv
 import multiprocessing
 import time
+from boto3.s3.transfer import TransferConfig
+
 
 load_dotenv(dotenv_path='ddw.env')
 TOKEN = os.getenv("TOKEN")
@@ -131,7 +133,9 @@ def process_bucket_object(obj_key, base_dir, base_url, req_params, bucket_name, 
     elif (formats and file_format in formats) or not formats:
         try:
             print('saving file:', data_fname)
-            bucket.download_file(obj_key, data_fname)
+            config = TransferConfig(use_threads=False)
+            s3.meta.client.download_file(bucket_name, obj_key, data_fname, Config=config)
+            # bucket.download_file(obj_key, data_fname)
         except Exception as e:
             print('error with file', obj_key)
             print('error:', e)
@@ -169,9 +173,12 @@ def read_s3_parallel(base_dir='data/ddw-s3', bucket_name='dataworld-newknowledge
     base_url = 'https://api.data.world/v0'
 
     s3 = boto3.resource('s3',
-                        aws_access_key_id=ACCESS_KEY,  # TODO Needed or even working? seems to load from ~/.aws/credentials instead
-                        aws_secret_access_key=SECRET_KEY,
+                        # aws_access_key_id=ACCESS_KEY,  # TODO Needed or even working? seems to load from ~/.aws/credentials instead
+                        # aws_secret_access_key=SECRET_KEY,
                         )
+
+    # client.download_file(Bucket="mybucket",
+    #                      Key="foo/bar.fastq.gz", Filename="bar.fastq.gz", Config=config)
 
     bucket = s3.Bucket(bucket_name)
     obj_gen = bucket.objects.filter(Prefix='derived')
@@ -368,8 +375,8 @@ def build_target_matrix(base_dir='data/ddw-s3'):
 
 if __name__ == '__main__':
     # main()
-    # read_s3_serial(formats=None)
-    read_s3_parallel(formats=None)
+    read_s3_serial(formats=None)
+    # read_s3_parallel(formats=None)
     # get_all_tags()
     # build_target_matrix()
     # move_labeled()
