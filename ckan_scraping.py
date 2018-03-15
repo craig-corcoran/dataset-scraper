@@ -6,10 +6,12 @@ import time
 import requests
 from ckanapi import RemoteCKAN
 from glob import glob
+import numpy as np
 
 from utilities import get_dataset_name, is_valid_resource, strip_empty
 import subprocess
 from utils import read_json, write_json
+from collections import Counter
 
 
 MIN_WAIT = 2
@@ -166,6 +168,13 @@ def collect_tagged_data(data_dir='data/ckan'):
                 subprocess.call(['cp', *csv_files, tags_fname, prep_dir])
 
 
+def get_alltags_list(data_dir='data/ckan'):
+    tag_files = glob(os.path.join(data_dir, '**/*_tags.json'), recursive=True)
+    all_tags = Counter(np.concatenate([read_json(tgf) for tgf in tag_files]))
+    print(all_tags)
+
+
 if __name__ == '__main__':
     # parallel_ckan_scrape()
-    collect_tagged_data()
+    # collect_tagged_data()
+    get_alltags_list()
