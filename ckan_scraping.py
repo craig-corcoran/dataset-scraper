@@ -5,8 +5,11 @@ import time
 
 import requests
 from ckanapi import RemoteCKAN
+from glob import glob
 
 from utilities import get_dataset_name, is_valid_resource, strip_empty
+import subprocess
+from utils import read_json, write_json
 
 
 MIN_WAIT = 2
@@ -131,5 +134,37 @@ def parallel_ckan_scrape(formats=['xls', 'xlsx', 'csv', 'json', 'txt'], data_dir
     pool.join()
 
 
+def collect_tagged_data(data_dir='data/ckan'):
+
+    for dataset in glob(os.path.join(data_dir, '*/*')):
+        print(dataset)
+        csv_files = glob(os.path.join(dataset, '**/*.csv'), recursive=True)
+        if csv_files:
+            # if there is a csv, there should be a metadata file
+            metadata_file = glob(os.path.join(dataset, '**/*_metadata.json'), recursive=True)
+            assert len(metadata_file) == 1
+            metadata_file = metadata_file[0]
+
+            metadata = read_json(metadata_file)
+
+            # check if tags present; if so, pull them out of metadata
+
+            tags = [tg['display_name'] for tg in metadata.get('tags', [])]
+            print('tags:', tags)
+            if tags:
+                write_json(tags, metadata_file.replace('_metadata.', '_tags.'))
+
+                # name the dir for writing the prep data to
+                dataset_path = os.path.split(metadata_file)[0]
+                rel_dataset_path = dataset_path.replace(data_dir, '')
+                rel_dataset_path = rel_dataset_path[1:] if rel_dataset_path[0] is '/' else rel_dataset_path
+                prep_dir = os.path.join(data_dir, 'preprocessed', rel_dataset_path)
+                print('pred dir:', prep_dir)
+                if not os.path.isdir(prep_dir):
+                    os.makedirs(prep_dir)
+                subprocess.call(['cp', *csv_files, metadata_file, prep_dir])
+
+
 if __name__ == '__main__':
-    parallel_ckan_scrape()
+    # parallel_ckan_scrape()
+    collect_tagged_data()
