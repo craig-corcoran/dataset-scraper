@@ -152,7 +152,8 @@ def collect_tagged_data(data_dir='data/ckan'):
             tags = [tg['display_name'] for tg in metadata.get('tags', [])]
             print('tags:', tags)
             if tags:
-                write_json(tags, metadata_file.replace('_metadata.', '_tags.'))
+                tags_fname = metadata_file.replace('_metadata.', '_tags.')
+                write_json(tags, tags_fname)
 
                 # name the dir for writing the prep data to
                 dataset_path = os.path.split(metadata_file)[0]
@@ -162,7 +163,7 @@ def collect_tagged_data(data_dir='data/ckan'):
                 print('pred dir:', prep_dir)
                 if not os.path.isdir(prep_dir):
                     os.makedirs(prep_dir)
-                subprocess.call(['cp', *csv_files, metadata_file, prep_dir])
+                subprocess.call(['cp', *csv_files, metadata_file, tags_fname, prep_dir])
 
 
 if __name__ == '__main__':
