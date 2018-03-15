@@ -163,7 +163,7 @@ def collect_tagged_data(data_dir='data/ckan'):
                 print('pred dir:', prep_dir)
                 if not os.path.isdir(prep_dir):
                     os.makedirs(prep_dir)
-                subprocess.call(['cp', *csv_files, metadata_file, tags_fname, prep_dir])
+                subprocess.call(['cp', *csv_files, tags_fname, prep_dir])
 
 
 if __name__ == '__main__':
